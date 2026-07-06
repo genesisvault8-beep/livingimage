@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#06060f">
+<title>HIVE — Living Image</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+:root {
+  --void: #06060f;
+  --surface: #0c0c1a;
+  --panel: #10101f;
+  --border: #1e1e3a;
+  --text: #e8e8f0;
+  --muted: #4a4a6a;
+  --muted-light: #7a7a9a;
+
+  --groq: #00e5ff;
+  --openrouter: #a78bfa;
+  --gemini: #fbbf24;
+  --cluster: #ff6b6b;
+  --core: #34d399;
+}
+
+html, body { width:100%; height:100%; background:var(--void); color:var(--text); font-family:'Space Grotesk',sans-serif; overflow:hidden; touch-action:none; }
+
+.screen { position:fixed; inset:0; display:flex; flex-direction:column; transition:opacity .3s, transform .3s; }
+.screen.hidden { opacity:0; pointer-events:none; transform:scale(.97); }
+
+/* SETUP */
+#setup { align-items:center; justify-content:center; padding:28px 22px; overflow-y:auto; }
+.setup-logo { font-family:'JetBrains Mono',monospace; font-size:10px; letter-spacing:6px; color:var(--muted); text-transform:uppercase; margin-bottom:6px; }
+.setup-title { font-size:36px; font-weight:700; letter-spacing:-1.5px; background:linear-gradient(135deg,var(--groq),var(--openrouter),var(--gemini)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; margin-bottom:6px; }
+.setup-sub { font-size:12px; color:var(--muted-light); margin-bottom:24px; text-align:center; line-height:1.6; max-width:300px; }
+
+.provider-row { display:flex; gap:10px; margin-bottom:24px; }
+.provider-pill { display:flex; flex-direction:column; align-items:center; gap:6px; }
+.provider-dot { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:8px; font-weight:700; }
+.provider-dot.groq { background:#00e5ff18; border:1.5px solid var(--groq); color:var(--groq); }
+.provider-dot.openrouter { background:#a78bfa18; border:1.5px solid var(--openrouter); color:var(--openrouter); }
+.provider-dot.gemini { background:#fbbf2418; border:1.5px solid var(--gemini); color:var(--gemini); }
+.provider-label { font-size:8px; color:var(--muted); letter-spacing:.5px; }
+
+.field-group { width:100%; max-width:340px; margin-bottom:14px; }
+.field-label { font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:2px; color:var(--muted); text-transform:uppercase; margin-bottom:7px; display:flex; justify-content:space-between; }
+.field-label .opt { color:var(--muted); opacity:.6; letter-spacing:1px; }
+.field-input, .field-textarea { width:100%; background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:13px 15px; color:var(--text); font-family:'JetBrains Mono',monospace; font-size:13px; outline:none; transition:border-color .2s; }
+.field-textarea { font-family:'Space Grotesk',sans-serif; resize:none; min-height:64px; line-height:1.5; }
+.field-input:focus, .field-textarea:focus { border-color:var(--groq); }
+.field-input::placeholder, .field-textarea::placeholder { color:var(--muted); }
+
+.btn-launch { width:100%; max-width:340px; margin-top:6px; padding:15px; background:linear-gradient(135deg,var(--groq),var(--openrouter)); border:none; border-radius:12px; color:var(--void); font-size:15px; font-weight:700; letter-spacing:.4px; cursor:pointer; transition:opacity .2s, transform .15s; }
+.btn-launch:active { opacity:.85; transform:scale(.98); }
+.btn-launch:disabled { opacity:.4; }
+.setup-note { font-size:10px; color:var(--muted); text-align:center; margin-top:14px; max-width:300px; line-height:1.7; }
+
+/* HIVE */
+#hive { background:var(--void); }
+.topbar { display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--border); flex-shrink:0; z-index:10; }
+.topbar-logo { font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:700; letter-spacing:4px; background:linear-gradient(90deg,var(--groq),var(--openrouter)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+.topbar-status { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted); letter-spacing:1px; }
+.topbar-settings { background:transparent; border:1px solid var(--border); border-radius:8px; padding:6px 10px; color:var(--muted-light); font-size:11px; cursor:pointer; }
+
+.graph-area { flex:1; position:relative; overflow:hidden; }
+#graphCanvas { position:absolute; inset:0; width:100%; height:100%; touch-action:none; }
+
+.legend { position:absolute; top:10px; left:12px; display:flex; flex-direction:column; gap:5px; font-family:'JetBrains Mono',monospace; font-size:8px; color:var(--muted-light); }
+.legend-row { display:flex; align-items:center; gap:6px; }
+.legend-dot { width:7px; height:7px; border-radius:50%; }
+
+.status-bar { padding:8px 16px; border-top:1px solid var(--border); display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.status-dot { width:6px; height:6px; border-radius:50%; background:var(--muted); flex-shrink:0; }
+.status-dot.active { background:var(--core); box-shadow:0 0 6px var(--core); }
+.status-text { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--muted-light); flex:1; }
+.view-final-btn { background:var(--core); color:var(--void); border:none; border-radius:7px; padding:5px 10px; font-size:10px; font-weight:700; font-family:'JetBrains Mono',monospace; cursor:pointer; display:none; }
+
+.input-area { padding:12px 16px 18px; border-top:1px solid var(--border); display:flex; gap:10px; align-items:flex-end; flex-shrink:0; }
+.prompt-input { flex:1; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px 14px; color:var(--text); font-size:14px; outline:none; resize:none; min-height:46px; max-height:110px; line-height:1.5; }
+.prompt-input:focus { border-color:var(--groq); }
+.send-btn { background:var(--groq); color:var(--void); border:none; border-radius:12px; width:46px; height:46px; font-size:18px; cursor:pointer; flex-shrink:0; }
+.send-btn:disabled { background:var(--muted); }
+
+/* CARD / OVERLAY */
+.overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); opacity:0; pointer-events:none; transition:opacity .25s; z-index:20; }
+.overlay.visible { opacity:1; pointer-events:auto; }
+.card { position:fixed; left:0; right:0; bottom:0; background:var(--panel); border-top:1px solid var(--border); border-radius:18px 18px 0 0; padding:20px 18px 28px; max-height:60vh; overflow-y:auto; transform:translateY(100%); transition:transform .3s; z-index:21; }
+.card.open { transform:translateY(0); }
+.card-head { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+.card-dot { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:700; flex-shrink:0; }
+.card-name { font-size:15px; font-weight:600; }
+.card-meta { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--muted-light); letter-spacing:.5px; margin-top:2px; }
+.card-response { font-size:13.5px; line-height:1.6; color:var(--text); white-space:pre-wrap; }
+.card-thinking { color:var(--muted-light); display:flex; align-items:center; gap:8px; font-size:13px; }
+.dots span { display:inline-block; width:5px; height:5px; border-radius:50%; background:var(--muted-light); margin:0 2px; animation:blink 1.2s infinite; }
+.dots span:nth-child(2){animation-delay:.2s} .dots span:nth-child(3){animation-delay:.4s}
+@keyframes blink { 0%,80%,100%{opacity:.2} 40%{opacity:1} }
+.copy-btn { margin-top:14px; background:transparent; border:1px solid var(--border); color:var(--muted-light); border-radius:8px; padding:8px 14px; font-size:11px; cursor:pointer; font-family:'JetBrains Mono',monospace; }
+
+.toast { position:fixed; bottom:100px; left:50%; transform:translateX(-50%) translateY(20px); background:var(--panel); border:1px solid var(--border); color:var(--text); padding:10px 18px; border-radius:10px; font-size:12px; opacity:0; transition:opacity .25s, transform .25s; z-index:30; pointer-events:none; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div id="setup" class="screen">
+  <div class="setup-logo">ZUSE · LIVING IMAGE</div>
+  <div class="setup-title">HIVE</div>
+  <div class="setup-sub">The run lives in the relay, not on one phone. Same code joins the same run — any connected phone holding the right key can pick up pending work, even if the phone that started it disconnects.</div>
+
+  <div class="provider-row">
+    <div class="provider-pill"><div class="provider-dot groq">GRQ</div><div class="provider-label">GROQ</div></div>
+    <div class="provider-pill"><div class="provider-dot openrouter">OR</div><div class="provider-label">OPENROUTER</div></div>
+    <div class="provider-pill"><div class="provider-dot gemini">GEM</div><div class="provider-label">GEMINI</div></div>
+  </div>
+
+  <div class="field-group">
+    <div class="field-label">RELAY PASSPHRASE — share privately, not in public channels</div>
+    <input class="field-input" id="roomCode" type="password" placeholder="shared secret, not a public label" maxlength="60">
+  </div>
+  <div class="field-group">
+    <div class="field-label">GROQ API KEY <span class="opt">optional</span></div>
+    <input class="field-input" id="keyGroq" type="password" placeholder="gsk_...">
+  </div>
+  <div class="field-group">
+    <div class="field-label">OPENROUTER API KEY <span class="opt">optional</span></div>
+    <input class="field-input" id="keyOpenrouter" type="password" placeholder="sk-or-...">
+  </div>
+  <div class="field-group">
+    <div class="field-label">GEMINI API KEY <span class="opt">optional</span></div>
+    <input class="field-input" id="keyGemini" type="password" placeholder="AIza...">
+  </div>
+  <div class="field-group">
+    <div class="field-label">BRIEF <span class="opt">optional — only if starting a new run</span></div>
+    <textarea class="field-textarea" id="briefInput" placeholder="e.g. Build a landing page for a coffee shop called Northbound. Dark theme, hero, menu, contact."></textarea>
+  </div>
+
+  <button class="btn-launch" id="joinBtn">Join the Relay</button>
+  <div class="setup-note">Keys stay on this device only — they're never sent to any peer. Pending work waits for whichever phone in the relay actually has the matching key. Tasks the planner flags as needing current info route through Groq or OpenRouter's web search — Gemini's compatible endpoint doesn't support it, so it's skipped for those tasks. Needs to be opened over https (not as a local file) for the connection to work.</div>
+</div>
+
+<div id="hive" class="screen hidden">
+  <div class="topbar">
+    <div class="topbar-logo">HIVE</div>
+    <div class="topbar-status" id="topbarStatus">IDLE</div>
+    <button class="topbar-settings" onclick="backToSetup()">⚙</button>
+  </div>
+  <div class="graph-area">
+    <canvas id="graphCanvas"></canvas>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div class="status-bar">
+    <div class="status-dot" id="statusDot"></div>
+    <div class="status-text" id="statusText">Connecting to the relay...</div>
+    <button class="view-final-btn" id="viewFinalBtn" onclick="openFinalCard()">RESULT</button>
+  </div>
+  <div class="input-area">
+    <textarea class="prompt-input" id="promptInput" placeholder="Describe what the hive should build..." rows="1" oninput="autoResize(this)"></textarea>
+    <button class="send-btn" id="sendBtn" onclick="sendBrief()">➤</button>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="closeCard()"></div>
+<div class="card" id="nodeCard">
+  <div class="card-head">
+    <div class="card-dot" id="cardDot"></div>
+    <div>
+      <div class="card-name" id="cardName"></div>
+      <div class="card-meta" id="cardMeta"></div>
+    </div>
+  </div>
+  <div class="card-response" id="cardResponse"></div>
+  <button class="copy-btn" id="copyBtn" onclick="copyCardOutput()" style="display:none">COPY</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------------------------------------------------------------------
+// Provider templates — identical call shape for all three (OpenAI-
+// compatible endpoints), so callProvider() never branches on provider.
+// ---------------------------------------------------------------------
+const PROVIDER_DEFS = [
+  { name:'groq', label:'GROQ', url:'https://api.groq.com/openai/v1/chat/completions', model:'llama-3.3-70b-versatile', batchCap:18, hex:'#00e5ff' },
+  { name:'openrouter', label:'OPENROUTER', url:'https://openrouter.ai/api/v1/chat/completions', model:'google/gemini-2.0-flash-exp:free', batchCap:18, hex:'#a78bfa' },
+  { name:'gemini', label:'GEMINI', url:'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', model:'gemini-2.0-flash', batchCap:15, hex:'#fbbf24' },
+];
+function provDef(name){ return PROVIDER_DEFS.find(p=>p.name===name); }
+
+// ---------------------------------------------------------------------
+// SEARCH — a pure lookup table, not a branch. Verified against current
+// docs: Groq's web search is just a model swap to "groq/compound" on
+// the same endpoint; OpenRouter's is an additive "tools" entry on the
+// same endpoint. Gemini's OpenAI-compatible endpoint rejects the
+// google_search tool outright (confirmed error from Google's own forum),
+// so it's left out of this table on purpose — search-tagged work simply
+// never routes there.
+// ---------------------------------------------------------------------
+const SEARCH_CONFIG = {
+  groq: { model: 'groq/compound' },
+  openrouter: { tools: [{ type: 'openrouter:web_search' }] }
+};
+const SEARCH_PROVIDER_NAMES = Object.keys(SEARCH_CONFIG);
+
+const CLUSTER_SIZE = 8;
+const PLANNER_SYSTEM = `You decompose a project brief into a flat JSON list of non-overlapping subtasks. Each subtask is one independent unit of work a single AI worker can complete alone, with no dependency on another subtask's output. For each subtask, also decide "needsSearch": true only if it genuinely requires current, real-time, or recent information a model's training data wouldn't reliably have (prices, news, current standings, recent releases) — false otherwise. Return ONLY valid JSON: a list of objects with "role", "task", and "needsSearch" keys. No prose, no markdown fences. Keep the list between 3 and 24 items depending on what the brief actually needs.`;
+const SYNTH_SYSTEM = `You combine the work of several specialist AI workers into one coherent piece. Resolve overlaps, keep the strongest content from each, and produce a single unified result — not a list of separate parts.`;
+
+// ---------------------------------------------------------------------
+// LOCAL-ONLY state (never serialized, never sent to any peer)
+// ---------------------------------------------------------------------
+let myProviders = [];   // this device's own keys
+let room = null;
+let sendSyncRaw = null;
+let sendCapsRaw = null;
+let selfId = null;
+let peerCount = 0;
+let contributing = false;
+let connectedPeers = new Set();   // other peers currently in the relay
+let capsByPeer = new Map();       // peerId -> provider names that peer holds keys for (never the keys themselves)
+
+// ---------------------------------------------------------------------
+// THE IMAGE — the only thing that travels between devices.
+// Everyone in the relay merges toward the same copy of this.
+// ---------------------------------------------------------------------
+let image = {
+  runId: null, plannedAt: null, brief: '',
+  workers: [],        // {role, task, providerName, state, output, error, claim}
+  clusterGroups: [],  // arrays of worker indices, fixed at plan time
+  clusterNodes: [],   // {state, output, claim}
+  core: { state:'idle', output:null, claim:null }
+};
+
+let canvas, ctx, dpr = 1;
+let breathPhase = 0, animFrame = null;
+let activeCardType = null, activeCardIndex = -1;
+
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function chunk(arr,size){ const out=[]; for(let i=0;i<arr.length;i+=size) out.push(arr.slice(i,i+size)); return out; }
+function shortId(id){ return id ? id.slice(0,5).toUpperCase() : '—'; }
+
+// ---------------------------------------------------------------------
+// MIGRATION, NOT RACING — every peer computes the same single rightful
+// owner for a given task from a hash of its id + who currently holds a
+// matching key. Nobody "claims" by winning a race; a task simply belongs
+// to whoever this function names, and only that peer will ever act on
+// it. Different tasks hash to different eligible peers, so the swarm
+// still works in parallel — it's per-task exclusivity, not global.
+// ---------------------------------------------------------------------
+function hashStr(s){
+  let h = 5381;
+  for (let i=0;i<s.length;i++){ h = ((h*33) ^ s.charCodeAt(i)) >>> 0; }
+  return h;
+}
+function designatedHolder(taskKey, providerName){
+  const candidates = [selfId, ...connectedPeers];
+  const eligible = candidates.filter(id => {
+    const caps = id === selfId ? myProviders.map(p=>p.name) : (capsByPeer.get(id) || []);
+    return providerName ? caps.includes(providerName) : caps.length > 0;
+  }).sort();
+  if (eligible.length === 0) return null;
+  return eligible[hashStr(taskKey) % eligible.length];
+}
+
+// ---------------------------------------------------------------------
+// callProvider — same call for every provider, no per-provider branching
+// ---------------------------------------------------------------------
+async function callProvider(provider, systemPrompt, userPrompt, useSearch) {
+  const search = useSearch ? SEARCH_CONFIG[provider.name] : null;
+  const body = {
+    model: (search && search.model) || provider.model,
+    max_tokens: 700,
+    temperature: 0.7,
+    messages: [
+      { role:'system', content: systemPrompt },
+      { role:'user', content: userPrompt }
+    ]
+  };
+  if (search && search.tools) body.tools = search.tools;
+
+  // Hard timeout — a hung fetch must not hold a claim forever.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 45000);
+
+  let res;
+  try {
+    res = await fetch(provider.url, {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${provider.key}` },
+      body: JSON.stringify(body),
+      signal: controller.signal
+    });
+  } catch(e) {
+    if (e.name === 'AbortError') throw new Error('Timed out after 45s — provider took too long to respond.');
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err?.error?.message || res.statusText);
+  }
+  const data = await res.json();
+  return data.choices[0].message.content.trim();
+}
+
+// ---------------------------------------------------------------------
+// TRYSTERO — loaded lazily so the page works as a plain shell until
+// someone actually joins a relay.
+// ---------------------------------------------------------------------
+let _trystero = null;
+async function ensureTrystero(){
+  if (!_trystero) _trystero = await import('https://esm.run/trystero/torrent');
+  return _trystero;
+}
+
+// ---------------------------------------------------------------------
+// PRIVACY — passphrase is never used as the literal room id.
+// It's hashed client-side (SHA-256) so the actual Trystero room id
+// is unguessable even if someone knows the appId. Anyone who wants in
+// needs the exact passphrase, shared out-of-band.
+// ---------------------------------------------------------------------
+async function deriveRoomId(passphrase){
+  const enc = new TextEncoder().encode('hive-living-image-salt-v1:' + passphrase);
+  const digest = await crypto.subtle.digest('SHA-256', enc);
+  const bytes = Array.from(new Uint8Array(digest));
+  return bytes.map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 32);
+}
+
+// ---------------------------------------------------------------------
+// JOIN / LAUNCH
+// ---------------------------------------------------------------------
+document.getElementById('joinBtn').addEventListener('click', launch);
+
+async function launch(){
+  const code = document.getElementById('roomCode').value.trim();
+  if (!code) { toast('Enter a relay code'); return; }
+
+  myProviders = PROVIDER_DEFS.map(p => {
+    const key = document.getElementById('key' + p.name[0].toUpperCase() + p.name.slice(1)).value.trim();
+    return key ? { ...p, key } : null;
+  }).filter(Boolean);
+
+  const brief = document.getElementById('briefInput').value.trim();
+
+  buildLegend();
+  document.getElementById('setup').classList.add('hidden');
+  document.getElementById('hive').classList.remove('hidden');
+  initCanvas();
+  startBreath();
+  setStatus('Connecting to the relay...', true);
+
+  try {
+    const { joinRoom, selfId: sid } = await ensureTrystero();
+    selfId = sid;
+    const roomId = await deriveRoomId(code);
+    room = joinRoom({ appId: 'hive-living-image-v1' }, roomId);
+  } catch(e) {
+    setStatus('Could not connect: ' + e.message, false);
+    return;
+  }
+
+  const [send, get] = room.makeAction('sync');
+  sendSyncRaw = send;
+  get((data) => {
+    mergeImage(data);
+    drawGraph();
+    updateStatusBar();
+    contributeWork();
+    if (activeCardType) refreshOpenCard();
+  });
+
+  // Capability exchange — peers tell each other which provider *names*
+  // they hold keys for (never the keys). This is what designatedHolder()
+  // uses to compute a task's single rightful owner identically everywhere.
+  const [sendCaps, getCaps] = room.makeAction('caps');
+  sendCapsRaw = sendCaps;
+  getCaps((data, peerId) => {
+    capsByPeer.set(peerId, data.providers || []);
+    contributeWork();
+  });
+
+  room.onPeerJoin(id => {
+    connectedPeers.add(id);
+    peerCount++;
+    updateStatusBar();
+    if (image.workers.length > 0) broadcastSync(id);
+    if (sendCapsRaw) sendCapsRaw({ providers: myProviders.map(p=>p.name) }, id);
+  });
+
+  room.onPeerLeave(id => {
+    connectedPeers.delete(id);
+    capsByPeer.delete(id);
+    peerCount--;
+    releaseClaims(id);
+    updateStatusBar();
+    drawGraph();
+    contributeWork();
+  });
+
+  setTimeout(() => {
+    if (image.workers.length === 0 && peerCount === 0) {
+      if (brief) runPlanning(brief);
+      else setStatus('Waiting — type a brief below to start a run.', false);
+    } else {
+      updateStatusBar();
+    }
+  }, 2500);
+
+  setInterval(contributeWork, 4000); // safety net against missed triggers
+  updateStatusBar();
+}
+
+function backToSetup() {
+  document.getElementById('hive').classList.add('hidden');
+  document.getElementById('setup').classList.remove('hidden');
+}
+
+function buildLegend() {
+  const el = document.getElementById('legend');
+  el.innerHTML = PROVIDER_DEFS.map(p =>
+    `<div class="legend-row"><div class="legend-dot" style="background:${p.hex}"></div>${p.label}</div>`
+  ).join('') +
+  `<div class="legend-row"><div class="legend-dot" style="background:#ff6b6b"></div>CLUSTER SYNTH</div>` +
+  `<div class="legend-row"><div class="legend-dot" style="background:#34d399"></div>CORE</div>`;
+}
+
+// ---------------------------------------------------------------------
+// PLANNING — whoever submits the first brief in an empty relay plans it.
+// Provider assignment round-robins across all three provider TYPES, not
+// just the planner's own keys, so peers with other keys have something
+// to pick up too.
+// ---------------------------------------------------------------------
+async function runPlanning(brief) {
+  if (myProviders.length === 0) { setStatus('Add at least one API key to plan a run.', false); return; }
+  if (image.workers.length > 0) { toast('A run is already active in this relay'); return; }
+
+  setStatus('Planner is decomposing the brief...', true);
+  document.getElementById('topbarStatus').textContent = 'PLANNING';
+
+  try {
+    const plannerProvider = myProviders[0];
+    let raw = await callProvider(plannerProvider, PLANNER_SYSTEM, brief);
+    raw = raw.trim().replace(/^```(json)?/i,'').replace(/```$/,'').trim();
+    const subtasks = JSON.parse(raw);
+
+    image.runId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    image.plannedAt = Date.now();
+    image.brief = brief;
+    let normalIdx = 0, searchIdx = 0;
+    image.workers = subtasks.map((t) => {
+      const needsSearch = !!t.needsSearch && SEARCH_PROVIDER_NAMES.length > 0;
+      const providerName = needsSearch
+        ? SEARCH_PROVIDER_NAMES[searchIdx++ % SEARCH_PROVIDER_NAMES.length]
+        : PROVIDER_DEFS[normalIdx++ % PROVIDER_DEFS.length].name;
+      return { role: t.role, task: t.task, providerName, needsSearch, state:'idle', output:null, error:null, claim:null };
+    });
+    image.clusterGroups = chunk(image.workers.map((_,i)=>i), CLUSTER_SIZE);
+    image.clusterNodes = image.clusterGroups.map(()=>({state:'idle', output:null, claim:null}));
+    image.core = { state:'idle', output:null, claim:null };
+  } catch(e) {
+    setStatus('Planning failed: ' + e.message, false);
+    document.getElementById('topbarStatus').textContent = 'ERROR';
+    return;
+  }
+
+  broadcastSync();
+  drawGraph();
+  updateStatusBar();
+  contributeWork();
+  toast('Plan ready — ' + image.workers.length + ' subtasks in the relay');
+}
+
+async function sendBrief() {
+  const input = document.getElementById('promptInput');
+  const brief = input.value.trim();
+  if (!brief) return;
+  input.value=''; autoResize(input);
+  runPlanning(brief);
+}
+
+// ---------------------------------------------------------------------
+// CONTRIBUTING — a peer only acts on a task if designatedHolder() names
+// it specifically. No race, no jitter needed to reduce collisions —
+// there are no collisions, because the same computation run anywhere
+// in the relay always names the same single peer for a given task.
+// ---------------------------------------------------------------------
+async function contributeWork(){
+  if (contributing || image.workers.length === 0) return;
+  contributing = true;
+  try {
+    reclaimStale(); // a claim nobody is actively updating anymore goes back to idle
+
+    const eligible = image.workers
+      .map((w,i)=>({w,i}))
+      .filter(({w,i}) => w.state==='idle' && designatedHolder(image.runId+':w:'+i, w.providerName) === selfId)
+      .map(({i})=>i);
+
+    if (eligible.length) {
+      await runEligibleBatch(eligible.filter(i => image.workers[i].state==='idle'));
+    }
+
+    image.clusterGroups.forEach((idxs, ci) => {
+      const node = image.clusterNodes[ci];
+      if (node.state==='idle'
+          && idxs.every(i => image.workers[i].state==='done' || image.workers[i].state==='error')
+          && designatedHolder(image.runId+':c:'+ci, null) === selfId) {
+        runClusterClaim(ci);
+      }
+    });
+    if (image.core.state==='idle' && image.clusterNodes.length>0 &&
+        image.clusterNodes.every(c=>c.state==='done'||c.state==='error') &&
+        designatedHolder(image.runId+':core', null) === selfId) {
+      runCoreClaim();
+    }
+  } finally {
+    contributing = false;
+  }
+}
+
+// A claim is "stale" if it's been thinking longer than any real provider
+// call could legitimately take (timeout above is 45s) plus slack for
+// network/jitter. Any connected peer can notice this and free it back to
+// idle — this is what covers a device that froze/locked without ever
+// formally leaving the relay, which onPeerLeave can't catch.
+const STALE_MS = 70000;
+
+function reclaimStale(){
+  const now = Date.now();
+  let changed = false;
+  image.workers.forEach(w => {
+    if (w.state==='thinking' && w.claimedAt && now - w.claimedAt > STALE_MS) {
+      w.state='idle'; w.claim=null; w.claimedAt=null; changed = true;
+    }
+  });
+  image.clusterNodes.forEach(c => {
+    if (c.state==='thinking' && c.claimedAt && now - c.claimedAt > STALE_MS) {
+      c.state='idle'; c.claim=null; c.claimedAt=null; changed = true;
+    }
+  });
+  if (image.core.state==='thinking' && image.core.claimedAt && now - image.core.claimedAt > STALE_MS) {
+    image.core.state='idle'; image.core.claim=null; image.core.claimedAt=null; changed = true;
+  }
+  if (changed) { broadcastSync(); drawGraph(); updateStatusBar(); }
+}
+
+async function runEligibleBatch(idxs){
+  const byProv = {};
+  idxs.forEach(i => { const pn = image.workers[i].providerName; (byProv[pn]=byProv[pn]||[]).push(i); });
+  for (const pn of Object.keys(byProv)) {
+    const cap = provDef(pn).batchCap;
+    const group = byProv[pn];
+    for (let s=0; s<group.length; s+=cap) {
+      const slice = group.slice(s, s+cap).filter(i => image.workers[i].state==='idle');
+      await Promise.allSettled(slice.map(runWorkerClaim));
+      if (s+cap < group.length) await sleep(5000);
+    }
+  }
+}
+
+async function runWorkerClaim(i){
+  const w = image.workers[i];
+  if (!w || w.state!=='idle') return;
+  w.state='thinking'; w.claim=selfId; w.claimedAt=Date.now();
+  broadcastSync(); drawGraph(); updateStatusBar();
+  const provider = myProviders.find(p=>p.name===w.providerName);
+  try {
+    const system = `You are a specialist AI worker. Your sole job: ${w.role}. Do only this — do not attempt other parts of the project.`;
+    w.output = await callProvider(provider, system, w.task, w.needsSearch);
+    w.state='done';
+  } catch(e) {
+    w.error = e.message; w.state='error';
+  }
+  broadcastSync(); drawGraph(); updateStatusBar();
+  contributeWork();
+}
+
+async function runClusterClaim(ci){
+  const node = image.clusterNodes[ci];
+  if (node.state!=='idle') return;
+  node.state='thinking'; node.claim=selfId; node.claimedAt=Date.now();
+  broadcastSync(); drawGraph();
+  const provider = myProviders[0];
+  const idxs = image.clusterGroups[ci];
+  const context = idxs.map(i => {
+    const w = image.workers[i];
+    return `[${w.role}] (${provDef(w.providerName).label}): ${w.output || '[failed: '+(w.error||'no output')+']'}`;
+  }).join('\n\n');
+  try {
+    node.output = await callProvider(provider, SYNTH_SYSTEM,
+      `Original brief: ${image.brief}\n\nWorker outputs:\n\n${context}\n\nCombine these into one coherent partial result.`);
+    node.state='done';
+  } catch(e) { node.state='error'; }
+  broadcastSync(); drawGraph(); updateStatusBar();
+  contributeWork();
+}
+
+async function runCoreClaim(){
+  if (image.core.state!=='idle') return;
+  image.core.state='thinking'; image.core.claim=selfId; image.core.claimedAt=Date.now();
+  broadcastSync(); drawGraph();
+  const provider = myProviders[0];
+
+  if (image.clusterNodes.length === 1) {
+    image.core.output = image.clusterNodes[0].output;
+    image.core.state = image.clusterNodes[0].state;
+    broadcastSync(); drawGraph(); updateStatusBar();
+    return;
+  }
+
+  const finalContext = image.clusterNodes.map((c,i)=>`Cluster ${i+1}: ${c.output || '[failed]'}`).join('\n\n---\n\n');
+  try {
+    image.core.output = await callProvider(provider, SYNTH_SYSTEM,
+      `Original brief: ${image.brief}\n\nThese are summaries from different groups of workers:\n\n${finalContext}\n\nProduce the final, single combined deliverable.`);
+    image.core.state='done';
+  } catch(e) { image.core.state='error'; }
+  broadcastSync(); drawGraph(); updateStatusBar();
+}
+
+// ---------------------------------------------------------------------
+// SYNC — merge, not overwrite. Same runId: keep whichever copy of each
+// worker/cluster/core is further along. Different runId: the run that
+// was planned first wins outright (two simultaneous starts in the same
+// empty relay is the one real race this doesn't fully solve — earliest
+// plan wins, the other is discarded).
+// ---------------------------------------------------------------------
+const RANK = { idle:0, thinking:1, done:2, error:2 };
+
+function adoptRemote(remote){
+  image.runId = remote.runId; image.plannedAt = remote.plannedAt; image.brief = remote.brief;
+  image.workers = remote.workers; image.clusterGroups = remote.clusterGroups;
+  image.clusterNodes = remote.clusterNodes; image.core = remote.core;
+}
+
+function mergeImage(remote){
+  if (!remote || !remote.runId) return;
+
+  if (image.runId === null) { adoptRemote(remote); return; }
+
+  if (remote.runId !== image.runId) {
+    if (remote.plannedAt < image.plannedAt) adoptRemote(remote);
+    return; // otherwise keep local, ignore the competing run
+  }
+
+  remote.workers.forEach((rw,i) => {
+    const lw = image.workers[i];
+    if (!lw) { image.workers[i] = rw; return; }
+    if (RANK[rw.state] > RANK[lw.state]) image.workers[i] = rw;
+  });
+  remote.clusterNodes.forEach((rc,ci) => {
+    const lc = image.clusterNodes[ci];
+    if (!lc) { image.clusterNodes[ci] = rc; return; }
+    if (RANK[rc.state] > RANK[lc.state]) image.clusterNodes[ci] = rc;
+  });
+  if (RANK[remote.core.state] > RANK[image.core.state]) image.core = remote.core;
+}
+
+function broadcastSync(target){
+  if (!sendSyncRaw || image.workers.length===0) return;
+  const payload = {
+    runId: image.runId, plannedAt: image.plannedAt, brief: image.brief,
+    workers: image.workers, clusterGroups: image.clusterGroups,
+    clusterNodes: image.clusterNodes, core: image.core
+  };
+  if (target) sendSyncRaw(payload, target); else sendSyncRaw(payload);
+}
+
+function releaseClaims(peerId){
+  image.workers.forEach(w => { if (w.claim===peerId && w.state==='thinking') { w.state='idle'; w.claim=null; } });
+  image.clusterNodes.forEach(c => { if (c.claim===peerId && c.state==='thinking') { c.state='idle'; c.claim=null; } });
+  if (image.core.claim===peerId && image.core.state==='thinking') { image.core.state='idle'; image.core.claim=null; }
+  if (image.workers.length>0) broadcastSync();
+}
+
+// ---------------------------------------------------------------------
+// STATUS
+// ---------------------------------------------------------------------
+function computePhaseLabel(){
+  if (image.workers.length===0) return 'IDLE';
+  const allWorkersTerminal = image.workers.every(w=>w.state==='done'||w.state==='error');
+  if (!allWorkersTerminal) return 'WORKING';
+  const allClustersTerminal = image.clusterNodes.every(c=>c.state==='done'||c.state==='error');
+  if (!allClustersTerminal) return 'SYNTHESIZING';
+  if (image.core.state!=='done' && image.core.state!=='error') return 'SYNTHESIZING';
+  return 'DONE';
+}
+
+function updateStatusBar(){
+  const label = computePhaseLabel();
+  document.getElementById('topbarStatus').textContent = `${label} · ${peerCount+1}p`;
+  document.getElementById('sendBtn').disabled = image.workers.length>0;
+  document.getElementById('viewFinalBtn').style.display = (image.core.state==='done') ? 'block' : 'none';
+
+  if (image.workers.length===0) { setStatus('Waiting — type a brief below to start a run.', false); return; }
+  const done = image.workers.filter(w=>w.state==='done').length;
+  const failed = image.workers.filter(w=>w.state==='error').length;
+  if (label==='DONE') setStatus('Done — tap any node, or view the result.', false);
+  else setStatus(`${done}/${image.workers.length} workers done${failed?` · ${failed} failed`:''} · ${peerCount} other phone(s) in relay`, true);
+}
+
+// ---------------------------------------------------------------------
+// CANVAS
+// ---------------------------------------------------------------------
+function initCanvas() {
+  canvas = document.getElementById('graphCanvas');
+  ctx = canvas.getContext('2d');
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  canvas.addEventListener('click', handleTap);
+}
+
+function resizeCanvas() {
+  dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  canvas.style.width = rect.width+'px';
+  canvas.style.height = rect.height+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  drawGraph();
+}
+
+function workerRadius() {
+  const n = image.workers.length;
+  if (n<=6) return 22; if (n<=10) return 18; if (n<=16) return 14; return 10;
+}
+
+function getPositions() {
+  const w = canvas.width/dpr, h = canvas.height/dpr;
+  const cx=w/2, cy=h/2;
+  const outerR = Math.min(w,h)*0.36;
+  const midR = outerR*0.55;
+  const showMid = image.clusterNodes.length > 1;
+
+  const workerPos = image.workers.map((_,i) => {
+    const a = (i/image.workers.length)*Math.PI*2 - Math.PI/2;
+    return { x:cx+Math.cos(a)*outerR, y:cy+Math.sin(a)*outerR };
+  });
+  const clusterPos = image.clusterNodes.map((_,i) => {
+    const a = (i/Math.max(image.clusterNodes.length,1))*Math.PI*2 - Math.PI/2;
+    const r = showMid ? midR : 0;
+    return { x:cx+Math.cos(a)*r, y:cy+Math.sin(a)*r };
+  });
+  const corePos = { x:cx, y:cy };
+  return { workerPos, clusterPos, corePos, showMid };
+}
+
+function drawGraph() {
+  if (!ctx) return;
+  const w = canvas.width/dpr, h = canvas.height/dpr;
+  ctx.clearRect(0,0,w,h);
+  if (image.workers.length===0) return;
+
+  const { workerPos, clusterPos, corePos, showMid } = getPositions();
+  const r = workerRadius();
+
+  image.workers.forEach((wk,i) => {
+    const ci = Math.floor(i/CLUSTER_SIZE);
+    const target = showMid ? clusterPos[ci] : corePos;
+    drawLine(workerPos[i], target, wk.state, provDef(wk.providerName).hex);
+  });
+  if (showMid) clusterPos.forEach((p,ci) => drawLine(p, corePos, image.clusterNodes[ci].state, '#ff6b6b'));
+
+  image.workers.forEach((wk,i) => drawNode(workerPos[i], r, provDef(wk.providerName).hex, wk.state, shortLabel(wk.role)));
+  if (showMid) image.clusterNodes.forEach((c,i) => drawNode(clusterPos[i], r+4, '#ff6b6b', c.state, 'C'+(i+1)));
+  if (image.workers.length>0) drawNode(corePos, r+8, '#34d399', image.core.state, 'CORE');
+}
+
+function shortLabel(role) { return role.split(/\s+/).map(w=>w[0]).join('').slice(0,3).toUpperCase(); }
+
+function drawLine(a,b,state,hex) {
+  const alpha = state==='idle' ? 0.08 : state==='thinking' ? 0.35+0.15*Math.sin(breathPhase*2) : state==='done' ? 0.3 : 0.08;
+  ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y);
+  ctx.strokeStyle = hex + Math.round(alpha*255).toString(16).padStart(2,'0');
+  ctx.lineWidth = 1.2; ctx.stroke();
+}
+
+function drawNode(pos, baseR, hex, state, label) {
+  let glowAlpha = 0.05;
+  if (state==='thinking') glowAlpha = 0.3+0.2*Math.sin(breathPhase*2.5);
+  else if (state==='done') glowAlpha = 0.22;
+  else if (state==='error') glowAlpha = 0.08;
+
+  const grad = ctx.createRadialGradient(pos.x,pos.y,0,pos.x,pos.y,baseR*2.2);
+  grad.addColorStop(0, hex+Math.round(glowAlpha*255).toString(16).padStart(2,'0'));
+  grad.addColorStop(1, hex+'00');
+  ctx.beginPath(); ctx.arc(pos.x,pos.y,baseR*2.2,0,Math.PI*2); ctx.fillStyle=grad; ctx.fill();
+
+  ctx.beginPath(); ctx.arc(pos.x,pos.y,baseR,0,Math.PI*2);
+  ctx.strokeStyle = state==='error' ? '#ff6b6b' : hex;
+  ctx.lineWidth = state==='thinking' ? 2 : 1.3;
+  ctx.globalAlpha = state==='idle' ? 0.4 : 1;
+  ctx.stroke(); ctx.globalAlpha=1;
+
+  ctx.beginPath(); ctx.arc(pos.x,pos.y,baseR-1.5,0,Math.PI*2);
+  ctx.fillStyle = hex + (state==='idle' ? '0d' : state==='done' ? '22' : '18');
+  ctx.fill();
+
+  ctx.font = `700 ${Math.max(8,baseR*0.42)}px JetBrains Mono`;
+  ctx.fillStyle = hex; ctx.globalAlpha = state==='idle' ? 0.5 : 1;
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(label, pos.x, pos.y); ctx.globalAlpha=1;
+
+  if (state==='done') {
+    ctx.font='9px sans-serif'; ctx.fillStyle=hex; ctx.textAlign='center'; ctx.textBaseline='bottom';
+    ctx.fillText('✓', pos.x+baseR-2, pos.y-baseR+8);
+  }
+}
+
+function startBreath() {
+  if (animFrame) cancelAnimationFrame(animFrame);
+  (function loop(){ breathPhase+=0.02; drawGraph(); animFrame=requestAnimationFrame(loop); })();
+}
+
+// ---------------------------------------------------------------------
+// TAP / CARDS
+// ---------------------------------------------------------------------
+function handleTap(e) {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX-rect.left, y = e.clientY-rect.top;
+  const { workerPos, clusterPos, corePos, showMid } = getPositions();
+  const r = workerRadius();
+
+  for (let i=0;i<workerPos.length;i++) if (Math.hypot(x-workerPos[i].x,y-workerPos[i].y)<r+6) return openWorkerCard(i);
+  if (showMid) for (let i=0;i<clusterPos.length;i++) if (Math.hypot(x-clusterPos[i].x,y-clusterPos[i].y)<r+10) return openClusterCard(i);
+  if (image.workers.length>0 && Math.hypot(x-corePos.x,y-corePos.y)<r+14) return openCoreCard();
+}
+
+function paintCardHead(hex, label, name, meta) {
+  document.getElementById('cardDot').style.cssText = `background:${hex}22;border:1.5px solid ${hex};color:${hex};font-family:JetBrains Mono,monospace;font-size:10px;font-weight:700;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;`;
+  document.getElementById('cardDot').textContent = label;
+  document.getElementById('cardName').textContent = name;
+  document.getElementById('cardName').style.color = hex;
+  document.getElementById('cardMeta').textContent = meta;
+}
+
+function renderCardBody(state, output, errorMsg) {
+  const el = document.getElementById('cardResponse');
+  const copyBtn = document.getElementById('copyBtn');
+  if (state==='thinking') { el.innerHTML = `<div class="card-thinking">Thinking<div class="dots"><span></span><span></span><span></span></div></div>`; copyBtn.style.display='none'; }
+  else if (state==='done' && output) { el.textContent = output; copyBtn.style.display='inline-block'; }
+  else if (state==='error') { el.innerHTML = `<span style="color:#ff6b6b">Error: ${errorMsg||'request failed'}</span>`; copyBtn.style.display='none'; }
+  else { el.innerHTML = `<span style="color:#4a4a6a">Not started yet.</span>`; copyBtn.style.display='none'; }
+}
+
+function claimLabel(claim){ return claim ? (claim===selfId ? 'you' : shortId(claim)) : 'unclaimed'; }
+
+function openWorkerCard(i) {
+  activeCardType='worker'; activeCardIndex=i;
+  const w = image.workers[i];
+  const pd = provDef(w.providerName);
+  paintCardHead(pd.hex, shortLabel(w.role), w.role, pd.label + (w.needsSearch ? ' · web search' : '') + ' · held by ' + claimLabel(w.claim));
+  renderCardBody(w.state, w.output, w.error);
+  openCard();
+}
+function openClusterCard(i) {
+  activeCardType='cluster'; activeCardIndex=i;
+  const node = image.clusterNodes[i];
+  paintCardHead('#ff6b6b', 'C'+(i+1), 'Cluster '+(i+1)+' synthesis', image.clusterGroups[i].length+' workers · held by '+claimLabel(node.claim));
+  renderCardBody(node.state, node.output, 'synthesis failed');
+  openCard();
+}
+function openCoreCard() {
+  activeCardType='core'; activeCardIndex=-1;
+  paintCardHead('#34d399', 'CORE', 'Final result', image.workers.length+' workers · '+image.clusterNodes.length+' cluster(s) · held by '+claimLabel(image.core.claim));
+  renderCardBody(image.core.state, image.core.output, 'synthesis failed');
+  openCard();
+}
+function openFinalCard(){ openCoreCard(); }
+
+function refreshOpenCard(){
+  if (activeCardType==='worker') openWorkerCard(activeCardIndex);
+  else if (activeCardType==='cluster') openClusterCard(activeCardIndex);
+  else if (activeCardType==='core') openCoreCard();
+}
+
+function openCard() {
+  document.getElementById('nodeCard').classList.add('open');
+  document.getElementById('overlay').classList.add('visible');
+}
+function closeCard() {
+  activeCardType=null;
+  document.getElementById('nodeCard').classList.remove('open');
+  document.getElementById('overlay').classList.remove('visible');
+}
+function copyCardOutput() {
+  const text = document.getElementById('cardResponse').textContent;
+  navigator.clipboard?.writeText(text).then(()=>toast('Copied'));
+}
+
+// ---------------------------------------------------------------------
+// UTIL
+// ---------------------------------------------------------------------
+function setStatus(text, active) {
+  document.getElementById('statusText').textContent = text;
+  document.getElementById('statusDot').className = 'status-dot' + (active?' active':'');
+}
+function autoResize(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,110)+'px'; }
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2400);
+}
+</script>
+</body>
+</html>
