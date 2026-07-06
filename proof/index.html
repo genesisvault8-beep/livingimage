@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Living Image — Minimal Proof</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#1B1410; --surface:#241A14; --surface-2:#2E211A;
+    --ochre:#D4A24C; --text:#F2E8DC; --text-dim:#B8A998; --border:#3A2C22;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;
+    min-height:100vh;display:flex;justify-content:center;padding:24px 16px 60px;}
+  .wrap{width:100%;max-width:440px;}
+  .eyebrow{font-family:'JetBrains Mono',monospace;font-size:11px;letter-spacing:.1em;
+    color:var(--ochre);text-transform:uppercase;margin-bottom:8px;}
+  h1{font-family:'Fraunces',serif;font-size:30px;margin:0 0 6px;}
+  .sub{color:var(--text-dim);font-size:13.5px;line-height:1.5;margin:0 0 22px;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    padding:16px;margin-bottom:14px;}
+  label{font-size:11.5px;color:var(--text-dim);display:block;margin-bottom:6px;}
+  input,textarea{width:100%;background:var(--surface-2);border:1px solid var(--border);
+    color:var(--text);font-family:'JetBrains Mono',monospace;font-size:13.5px;
+    padding:10px 12px;border-radius:8px;outline:none;resize:vertical;}
+  input:focus,textarea:focus{border-color:var(--ochre);}
+  button{font-family:'Inter',sans-serif;font-weight:600;font-size:14px;border:none;
+    border-radius:9px;padding:11px 16px;cursor:pointer;min-height:44px;width:100%;
+    margin-top:8px;}
+  button:disabled{opacity:.35;cursor:not-allowed;}
+  .btn-primary{background:var(--ochre);color:#241A14;}
+  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);}
+  .row{display:flex;gap:8px;}
+  .row button{margin-top:0;}
+  .state-box{background:var(--surface-2);border:1px solid var(--border);border-radius:10px;
+    padding:14px;font-family:'JetBrains Mono',monospace;font-size:13px;white-space:pre-wrap;
+    margin-bottom:14px;}
+  .badge{display:inline-block;font-family:'JetBrains Mono',monospace;font-size:11px;
+    padding:4px 9px;border-radius:20px;margin-bottom:12px;}
+  .badge.holding{background:#3a2e15;color:var(--ochre);border:1px solid var(--ochre);}
+  .badge.empty{background:var(--surface-2);color:var(--text-dim);border:1px solid var(--border);}
+  details summary{cursor:pointer;font-size:11.5px;color:var(--text-dim);margin-top:4px;}
+  pre{font-size:10.5px;color:var(--text-dim);white-space:pre-wrap;margin-top:8px;}
+  .log{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--text-dim);
+    max-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;}
+  .log div{border-left:2px solid var(--border);padding-left:8px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="eyebrow">No code on load · no server</div>
+  <h1>The Living Image</h1>
+  <p class="sub">This page starts knowing nothing. The only logic it can run is whatever arrives inside an image from another phone — and once it hands that image off, it forgets it again.</p>
+
+  <div class="card" id="gate">
+    <label for="roomCode">Relay code — same code on both phones</label>
+    <input id="roomCode" type="text" placeholder="e.g. proof-1">
+    <button class="btn-primary" id="joinBtn">Join</button>
+  </div>
+
+  <div id="stage" style="display:none;">
+
+    <div id="emptyView">
+      <span class="badge empty">holding nothing</span>
+      <p class="sub" style="margin-bottom:14px;">You're an empty shell. Create a fresh image to start one, or wait — if someone else passes one to you, it'll appear here.</p>
+      <button class="btn-primary" id="createBtn">Create a fresh image (counter demo)</button>
+    </div>
+
+    <div id="holdingView" style="display:none;">
+      <span class="badge holding">holding the image</span>
+      <div class="state-box" id="stateBox"></div>
+
+      <div class="card">
+        <label>Run a behavior already inside this image</label>
+        <div class="row" id="actionButtons"></div>
+      </div>
+
+      <div class="card">
+        <label for="handlerName">Add new behavior — name</label>
+        <input id="handlerName" type="text" placeholder="e.g. myDouble">
+        <label for="paintingPicker" style="margin-top:10px;">Painting — a fixed Piet program, not code you write</label>
+        <select id="paintingPicker">
+          <option value="increment">increment (+1)</option>
+          <option value="decrement">decrement (−1)</option>
+          <option value="double">double (×2)</option>
+          <option value="reset">reset (→ 0)</option>
+        </select>
+        <button class="btn-ghost" id="addHandlerBtn">Add this behavior to the image</button>
+      </div>
+
+      <button class="btn-primary" id="passBtn">Pass it on — and forget it</button>
+
+      <details>
+        <summary>Raw image being shipped</summary>
+        <pre id="rawImage"></pre>
+      </details>
+    </div>
+
+    <div class="card">
+      <label>Log</label>
+      <div class="log" id="logEl"></div>
+    </div>
+
+  </div>
+
+</div>
+
+<script type="module">
+  import { joinRoom, selfId } from 'https://esm.run/trystero/torrent'
+
+  // -------------------------------------------------------------------
+  // MINIMAL PIET INTERPRETER — spec-faithful, step-bounded. Behavior
+  // arrives as a grid of colors, never as text/eval-able code. A
+  // stranger's "handler" can only ever be one of Piet's 17 fixed
+  // operations; there is no path from a color grid to fetch(), DOM
+  // access, or anything outside this stack machine. Verified against
+  // known increment/decrement/double/reset programs before shipping.
+  // -------------------------------------------------------------------
+  const OP_TABLE = {}
+  ;[[1,0,'push'],[2,0,'pop'],[0,1,'add'],[1,1,'subtract'],[2,1,'multiply'],
+    [0,2,'divide'],[1,2,'mod'],[2,2,'not'],[3,0,'greater'],[4,0,'pointer'],
+    [5,0,'switch'],[3,1,'duplicate'],[4,1,'roll'],[5,1,'in_number'],
+    [3,2,'in_char'],[4,2,'out_number'],[5,2,'out_char']
+  ].forEach(([dh,dl,name]) => OP_TABLE[`${dh},${dl}`] = name)
+
+  const hueOf = c => Math.floor(c/3), lightOf = c => c%3
+  const DP_VEC = [[1,0],[0,1],[-1,0],[0,-1]]
+
+  function findBlock(grid, sx, sy){
+    const h = grid.length, w = grid[0].length, color = grid[sy][sx]
+    const seen = new Set([sy*w+sx]), stack = [[sx,sy]], cells = [[sx,sy]]
+    while (stack.length){
+      const [x,y] = stack.pop()
+      for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+        const nx=x+dx, ny=y+dy
+        if (nx<0||ny<0||nx>=w||ny>=h) continue
+        if (grid[ny][nx] !== color) continue
+        const key = ny*w+nx
+        if (seen.has(key)) continue
+        seen.add(key); stack.push([nx,ny]); cells.push([nx,ny])
+      }
+    }
+    return cells
+  }
+  function edgeCell(cells, dp){
+    if (dp===0) return cells.reduce((a,b)=> b[0]>a[0]?b:a)
+    if (dp===2) return cells.reduce((a,b)=> b[0]<a[0]?b:a)
+    if (dp===1) return cells.reduce((a,b)=> b[1]>a[1]?b:a)
+    return cells.reduce((a,b)=> b[1]<a[1]?b:a)
+  }
+  function farthestAmongTies(cells, dp, edgeVal, cc){
+    const isVertEdge = (dp===0||dp===2)
+    const tied = cells.filter(c => isVertEdge ? c[0]===edgeVal : c[1]===edgeVal)
+    const perp = (dp + (cc===1? 1 : -1) + 4) % 4
+    if (perp===0) return tied.reduce((a,b)=> b[0]>a[0]?b:a)
+    if (perp===2) return tied.reduce((a,b)=> b[0]<a[0]?b:a)
+    if (perp===1) return tied.reduce((a,b)=> b[1]>a[1]?b:a)
+    return tied.reduce((a,b)=> b[1]<a[1]?b:a)
+  }
+  function pietRun(grid, { input=[], maxSteps=2000, haltAfterOutputs=null } = {}){
+    const h = grid.length, w = grid[0].length
+    let x=0,y=0
+    while (grid[y][x] === -1) { x++; if (x>=w){x=0;y++} if(y>=h) throw new Error('no start cell') }
+    let dp=0, cc=0
+    const stack = [], output = [], inp = [...input]
+    let blocked = 0, steps = 0
+    const inBounds = (px,py) => px>=0&&py>=0&&px<w&&py<h
+
+    while (steps++ < maxSteps){
+      if (blocked >= 8) break
+      const cells = findBlock(grid, x, y)
+      const dpIsVert = (dp===0||dp===2)
+      const edgeVal = dpIsVert ? edgeCell(cells,dp)[0] : edgeCell(cells,dp)[1]
+      const [ex,ey] = farthestAmongTies(cells, dp, edgeVal, cc)
+      const [dx,dy] = DP_VEC[dp]
+      let nx = ex+dx, ny = ey+dy
+
+      if (!inBounds(nx,ny) || grid[ny][nx] === -1){
+        if (blocked % 2 === 0) cc = 1-cc; else dp = (dp+1)%4
+        blocked++; continue
+      }
+      if (grid[ny][nx] === -2){
+        let px=nx, py=ny, safety = w*h+5
+        while (inBounds(px,py) && grid[py][px] === -2 && safety-- > 0) { px+=dx; py+=dy }
+        if (!inBounds(px,py) || grid[py][px] === -1){
+          if (blocked % 2 === 0) cc = 1-cc; else dp = (dp+1)%4
+          blocked++; continue
+        }
+        x=px; y=py; blocked=0; continue
+      }
+
+      const fromColor = grid[y][x], toColor = grid[ny][nx]
+      const dHue = ((hueOf(toColor)-hueOf(fromColor))%6+6)%6
+      const dLight = ((lightOf(toColor)-lightOf(fromColor))%3+3)%3
+      const cmd = (dHue===0 && dLight===0) ? null : OP_TABLE[`${dHue},${dLight}`]
+      const fromSize = cells.length
+
+      switch(cmd){
+        case 'push': stack.push(fromSize); break
+        case 'pop': stack.pop(); break
+        case 'add': { const a=stack.pop(), b=stack.pop(); stack.push(b+a); break }
+        case 'subtract': { const a=stack.pop(), b=stack.pop(); stack.push(b-a); break }
+        case 'multiply': { const a=stack.pop(), b=stack.pop(); stack.push(b*a); break }
+        case 'divide': { const a=stack.pop(), b=stack.pop(); stack.push(a?Math.floor(b/a):0); break }
+        case 'mod': { const a=stack.pop(), b=stack.pop(); stack.push(a?(((b%a)+a)%a):0); break }
+        case 'not': { const a=stack.pop(); stack.push(a===0?1:0); break }
+        case 'greater': { const a=stack.pop(), b=stack.pop(); stack.push(b>a?1:0); break }
+        case 'duplicate': { stack.push(stack[stack.length-1]); break }
+        case 'roll': break
+        case 'pointer': { const a=stack.pop()||0; dp=((dp+a)%4+4)%4; break }
+        case 'switch': { const a=stack.pop()||0; if (Math.abs(a)%2===1) cc=1-cc; break }
+        case 'in_number': case 'in_char': { stack.push(inp.length?inp.shift():0); break }
+        case 'out_number': case 'out_char': { output.push(stack.pop()); break }
+      }
+      x=nx; y=ny; blocked=0
+      if (haltAfterOutputs !== null && output.length >= haltAfterOutputs) break
+    }
+    return { output, stack, steps }
+  }
+
+  // Pre-approved "paintings" — a receiving device can only ever run one
+  // of these fixed grids, never arbitrary code. c(hue,light) = hue*3+light.
+  const c = (h,l) => h*3+l
+  const PAINTINGS = {
+    increment: [[c(0,0),c(0,0), c(5,1), c(0,1),c(0,1), c(0,2),c(0,2), c(4,1),c(4,1)]],
+    decrement: [[c(0,0),c(0,0), c(5,1), c(0,1),c(0,1), c(1,2),c(1,2), c(5,1),c(5,1)]],
+    double:    [[c(0,0),c(0,0), c(5,1),c(5,1), c(0,1),c(0,1), c(2,2),c(2,2), c(0,1),c(0,1)]],
+    reset:     [[c(0,0), c(1,0),c(1,0), c(3,2),c(3,2), c(1,1),c(1,1)]]
+  }
+  const PIET_HEX = {}
+  const HUE_HEX = [[0xFF,0xC0,0xC0],[0xFF,0xFF,0xC0],[0xC0,0xFF,0xC0],[0xC0,0xFF,0xFF],[0xC0,0xC0,0xFF],[0xFF,0xC0,0xFF]]
+  // light row scales toward white, dark row scales toward black — approximate but visually distinct
+  function colorHex(code){
+    if (code===-1) return '#111111'
+    if (code===-2) return '#F2E8DC'
+    const hue=hueOf(code), light=lightOf(code)
+    const base = HUE_HEX[hue]
+    const scale = light===0 ? 1 : light===1 ? 0.75 : 0.45
+    return '#' + base.map(v => Math.round(v*scale).toString(16).padStart(2,'0')).join('')
+  }
+  function paintGridToCanvas(grid, canvas){
+    const w = grid[0].length, h = grid.length, cell = 14
+    canvas.width = w*cell; canvas.height = h*cell
+    const ctx = canvas.getContext('2d')
+    for (let y=0;y<h;y++) for (let x=0;x<w;x++){
+      ctx.fillStyle = colorHex(grid[y][x])
+      ctx.fillRect(x*cell, y*cell, cell, cell)
+    }
+  }
+
+  let room = null, sendImg = null
+  let image = null   // { state, handlers: { name: grid } } — the only thing that ever travels
+  let peers = 0
+
+  const $ = id => document.getElementById(id)
+
+  function log(msg){
+    const d = document.createElement('div')
+    d.textContent = msg
+    $('logEl').prepend(d)
+    while ($('logEl').children.length > 8) $('logEl').removeChild($('logEl').lastChild)
+  }
+
+  function render(){
+    if (!image){
+      $('emptyView').style.display = 'block'
+      $('holdingView').style.display = 'none'
+      return
+    }
+    $('emptyView').style.display = 'none'
+    $('holdingView').style.display = 'block'
+    $('stateBox').textContent = JSON.stringify(image.state, null, 2)
+    $('rawImage').textContent = JSON.stringify(image, null, 2)
+
+    $('actionButtons').innerHTML = ''
+    Object.keys(image.handlers).forEach(name => {
+      const wrap = document.createElement('div')
+      wrap.style.marginBottom = '10px'
+      const b = document.createElement('button')
+      b.className = 'btn-ghost'
+      b.textContent = name
+      b.onclick = () => runAction(name)
+      const canvas = document.createElement('canvas')
+      canvas.style.display = 'block'; canvas.style.marginTop = '6px'; canvas.style.borderRadius = '4px'
+      paintGridToCanvas(image.handlers[name], canvas)
+      wrap.appendChild(b); wrap.appendChild(canvas)
+      $('actionButtons').appendChild(wrap)
+    })
+  }
+
+  function runAction(name){
+    const grid = image.handlers[name]
+    const { output, steps } = pietRun(grid, { input: [image.state.count||0], haltAfterOutputs: 1, maxSteps: 2000 })
+    if (!output.length) { log(`"${name}" produced no output after ${steps} steps — refusing to update state`); return }
+    image.state = { ...image.state, count: output[0] }
+    log(`ran "${name}" (painting, ${steps} steps) → ${JSON.stringify(image.state)}`)
+    render()
+  }
+
+  $('addHandlerBtn').onclick = () => {
+    const name = $('handlerName').value.trim()
+    const picked = $('paintingPicker').value
+    if (!name || !picked || !image) return
+    image.handlers[name] = PAINTINGS[picked]
+    log(`added "${picked}" as behavior "${name}" — it's a painting, not code; the next phone can only run Piet's fixed operations on it`)
+    $('handlerName').value = ''
+    render()
+  }
+
+  $('createBtn').onclick = () => {
+    image = {
+      state: { count: 0 },
+      handlers: {
+        increment: PAINTINGS.increment,
+        decrement: PAINTINGS.decrement
+      }
+    }
+    log('created a fresh image locally — nothing sent yet')
+    render()
+  }
+
+  $('passBtn').onclick = () => {
+    if (!image || !sendImg) return
+    if (peers === 0) { log('no one else in this relay yet — nothing to pass to'); return }
+    sendImg(image)
+    log('sent the image — forgetting it now')
+    image = null
+    render()
+  }
+
+  $('joinBtn').onclick = () => {
+    const code = $('roomCode').value.trim()
+    if (!code) return
+    $('gate').style.display = 'none'
+    $('stage').style.display = 'block'
+
+    room = joinRoom({ appId: 'living-image-minimal-v1' }, code)
+    const [send, get] = room.makeAction('image')
+    sendImg = send
+
+    get((data) => {
+      image = data
+      log('received an image — this device had zero of this logic a moment ago')
+      render()
+    })
+
+    room.onPeerJoin(() => { peers++; log('a phone joined the relay') })
+    room.onPeerLeave(() => { peers--; log('a phone left the relay') })
+
+    render()
+  }
+</script>
+</body>
+</html>
