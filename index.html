@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Living Image</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap');
+
+  :root{
+    --bg: #14171C;
+    --bg-raised: #1B1F26;
+    --line: #2A2F38;
+    --text: #E8E6E1;
+    --text-dim: #9AA0AA;
+    --red: #C24A4A;    --yellow: #C2B23A;  --green: #4AA37A;
+    --cyan: #3AA3B2;   --blue: #4A6FC2;    --magenta: #B24AA3;
+  }
+  *{ box-sizing: border-box; }
+  /* (removed a duplicate/typo'd --text-dim declaration that was here) */
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif;
+    line-height:1.5;
+  }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+  a{ color:inherit; }
+
+  header{
+    max-width:760px; margin:0 auto; padding:72px 24px 0;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace; font-size:13px; letter-spacing:0.12em;
+    color:var(--text-dim); text-transform:uppercase; margin-bottom:18px;
+  }
+  h1{
+    font-family:'IBM Plex Mono', monospace; font-weight:600;
+    font-size:clamp(28px, 5vw, 42px); line-height:1.15; margin:0 0 20px;
+    letter-spacing:-0.01em;
+  }
+  .lede{ font-size:17px; color:#C7C4BD; max-width:560px; margin:0 0 40px; }
+
+  /* --- the hero signature: the real increment Piet program, rendered live --- */
+  .hero-grid-wrap{
+    display:flex; align-items:center; gap:20px; flex-wrap:wrap;
+    padding:20px; background:var(--bg-raised); border:1px solid var(--line);
+    border-radius:6px; margin-bottom:56px;
+  }
+  #heroCanvas{ image-rendering: pixelated; border-radius:3px; flex-shrink:0; }
+  .hero-caption{ font-size:13px; color:var(--text-dim); }
+  .hero-caption .mono{ color:var(--text); }
+
+  main{ max-width:760px; margin:0 auto; padding:0 24px 100px; }
+
+  .cards{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:56px; }
+  @media (max-width:600px){ .cards{ grid-template-columns:1fr; } }
+
+  .card{
+    display:block; text-decoration:none; padding:24px;
+    background:var(--bg-raised); border:1px solid var(--line); border-radius:6px;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .card:hover{ border-color:var(--blue); transform:translateY(-1px); }
+  .card:focus-visible{ outline:2px solid var(--cyan); outline-offset:2px; }
+  .card .tag{ font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--text-dim); margin-bottom:10px; }
+  .card h2{ font-size:19px; margin:0 0 8px; font-weight:500; }
+  .card p{ font-size:14px; color:#A9A6A0; margin:0; }
+  .swatch-row{ display:flex; gap:4px; margin-top:16px; }
+  .swatch{ width:14px; height:14px; border-radius:2px; }
+
+  section.note{
+    border-top:1px solid var(--line); padding-top:32px; font-size:14px; color:#A9A6A0;
+  }
+  section.note h3{ font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--text-dim);
+    text-transform:uppercase; letter-spacing:0.1em; margin:0 0 14px; font-weight:600; }
+  section.note ul{ margin:0; padding-left:20px; }
+  section.note li{ margin-bottom:8px; }
+
+  footer{ max-width:760px; margin:0 auto; padding:0 24px 60px; font-size:13px; color:#5F636B; font-family:'IBM Plex Mono', monospace; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Private build — not for public distribution</div>
+  <h1>Every device holds nothing<br>until the moment it holds everything.</h1>
+  <p class="lede">
+    A living image is a self-contained package of state and behavior that migrates
+    from phone to phone. The device that just passed it along goes back to knowing
+    nothing — not a copy left behind, an actual handoff.
+  </p>
+
+  <div class="hero-grid-wrap">
+    <canvas id="heroCanvas"></canvas>
+    <div class="hero-caption">
+      This is <span class="mono">increment</span> — a real, running behavior from the
+      proof below. Nine colored cells, verified against the Piet language spec.<br>
+      Not an icon. The actual program.
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="cards">
+    <a class="card" href="./hive/">
+      <div class="tag">01 / product</div>
+      <h2>HIVE</h2>
+      <p>Phones pool their own AI provider keys to run one task, split across the swarm — no server, no shared credentials.</p>
+      <div class="swatch-row">
+        <div class="swatch" style="background:var(--blue)"></div>
+        <div class="swatch" style="background:var(--magenta)"></div>
+        <div class="swatch" style="background:var(--cyan)"></div>
+      </div>
+    </a>
+    <a class="card" href="./proof/">
+      <div class="tag">02 / mechanic</div>
+      <h2>Minimal Proof</h2>
+      <p>The bare migration primitive on its own: a counter and its behaviors, painted as Piet programs, passed hand to hand.</p>
+      <div class="swatch-row">
+        <div class="swatch" style="background:var(--red)"></div>
+        <div class="swatch" style="background:var(--yellow)"></div>
+        <div class="swatch" style="background:var(--green)"></div>
+      </div>
+    </a>
+  </div>
+
+  <section class="note">
+    <h3>Before you share this link</h3>
+    <ul>
+      <li>HIVE needs a shared passphrase to enter — send that separately, never in the same message as this URL.</li>
+      <li>Everyone brings their own provider key (Groq, OpenRouter, Gemini). Keys stay on-device, never sent to a peer.</li>
+      <li>This has been tested logically (interpreter and ownership math verified), not yet at scale with your actual group — your first real run is the real test.</li>
+    </ul>
+  </section>
+</main>
+
+<footer>living-image · no server, no shared state, no logic anyone didn't bring themselves</footer>
+
+<script>
+  // Render the real increment program from minimal-proof — same encoding,
+  // same colors, not a mockup.
+  const c = (h,l) => h*3+l;
+  const INCREMENT = [[c(0,0),c(0,0), c(5,1), c(0,1),c(0,1), c(0,2),c(0,2), c(4,1),c(4,1)]];
+  const HUE_HEX = [[0xC2,0x4A,0x4A],[0xC2,0xB2,0x3A],[0x4A,0xA3,0x7A],[0x3A,0xA3,0xB2],[0x4A,0x6F,0xC2],[0xB2,0x4A,0xA3]];
+  function colorHex(code){
+    const hue = Math.floor(code/3), light = code%3;
+    const base = HUE_HEX[hue];
+    const scale = light===0 ? 1 : light===1 ? 0.75 : 0.5;
+    return '#' + base.map(v => Math.round(v*scale).toString(16).padStart(2,'0')).join('');
+  }
+  const canvas = document.getElementById('heroCanvas');
+  const cell = 22, grid = INCREMENT;
+  canvas.width = grid[0].length*cell; canvas.height = grid.length*cell;
+  const ctx = canvas.getContext('2d');
+  grid.forEach((row,y) => row.forEach((v,x) => {
+    ctx.fillStyle = colorHex(v);
+    ctx.fillRect(x*cell, y*cell, cell, cell);
+  }));
+</script>
+</body>
+</html>
